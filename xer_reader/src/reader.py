@@ -52,6 +52,28 @@ class Reader:
         return RegEx.table_names.value.findall(self.data)
 
 
+def _clean_row(row: str) -> list[str]:
+    """Strips white space from last value in row"""
+    row_values = row.split("\t")[1:]
+    if row_values:
+        row_values[-1] = _clean_value(row_values[-1])
+    return row_values
+
+
+def _clean_value(val: str) -> str:
+    """Strips white space from a value"""
+    if val == "":
+        return ""
+    return val.strip()
+
+
+def _parse_table_data(data: str) -> list[dict[str, str]]:
+    lines = data.split("\n")
+    cols = lines.pop(0).strip().split("\t")[1:]  # Second line is the column labels
+    rows = [dict(zip(cols, _clean_row(row))) for row in lines if row.startswith("%R")]
+    return rows
+
+
 def _read(file: str | Path | BinaryIO) -> str:
     file_contents = ""
     if isinstance(file, (str, Path)):
@@ -66,25 +88,3 @@ def _read(file: str | Path | BinaryIO) -> str:
         raise ValueError("ValueError: invalid XER file")
 
     return file_contents
-
-
-def _parse_table_data(data: str) -> list[dict[str, str]]:
-    lines = data.split("\n")
-    cols = lines.pop(0).strip().split("\t")[1:]  # Second line is the column labels
-    rows = [dict(zip(cols, _clean_row(row))) for row in lines if row.startswith("%R")]
-    return rows
-
-
-def _clean_row(row: str) -> list[str]:
-    """Strips white space from last value in row"""
-    row_values = row.split("\t")[1:]
-    if row_values:
-        row_values[-1] = _clean_value(row_values[-1])
-    return row_values
-
-
-def _clean_value(val: str) -> str:
-    """Strips white space from a value"""
-    if val == "":
-        return ""
-    return val.strip()
