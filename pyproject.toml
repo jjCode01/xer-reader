@@ -11,6 +11,11 @@ repository = "https://github.com/jjCode01/xer-reader"
 [tool.poetry.dependencies]
 python = "^3.10"
 
+[tool.poetry.group.test.dependencies]
+tqdm = "^4.66.1"
+
+[tool.poetry.scripts]
+test = 'scripts:test'
 
 [build-system]
 requires = ["poetry-core"]
