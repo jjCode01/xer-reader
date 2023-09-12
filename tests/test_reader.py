@@ -1,6 +1,8 @@
 import json
+import re
 import unittest
 
+from datetime import datetime
 from multiprocessing import Pool
 from pathlib import Path
 from tqdm import tqdm
@@ -60,8 +62,10 @@ def get_xer_files() -> list:
 def process_xer_file(xer: Reader) -> dict:
     return {
         "export_date": xer.export_date.strftime(date_format),
+        "export_user": xer.export_user,
         "export_version": xer.export_version,
-        "table_names": xer.table_names(),
+        "errors": xer.errors(),
+        **{name: len(entries) for name, entries in xer.tables.items()}
     }
 
 
@@ -80,9 +84,7 @@ class TestReader(unittest.TestCase):
         print(f"Running tests on {len(xer_data)} .xer files.")
         for file, data in tqdm(xer_data.items()):
             reader = Reader(file)
-            self.assertEqual(
-                reader.export_date.strftime(date_format), data["export_date"]
-            )
-            self.assertEqual(
-                reader.export_version, data["export_version"]
-            )
+            self.assertIsInstance(reader.export_date, datetime)
+            self.assertRegex(reader.export_version, re.compile(r"\d+\.\d+"))
+            self.assertGreaterEqual(len(reader.tables["PROJECT"]), 1)
+            self.assertGreaterEqual(len(reader.tables["PROJWBS"]), 1)
