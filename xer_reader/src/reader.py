@@ -62,6 +62,11 @@ class Reader:
 
         return list(errors)
 
+
+    def delete_table(self, table_name: str):
+        # TODO
+        search = re.compile(rf"(?<=%T\t{table_name.upper()}\n)(.|\s)*?(?=%T|%E)")
+
     def to_csv(self):
         # TODO
         pass
