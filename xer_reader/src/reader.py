@@ -1,14 +1,13 @@
 # xer-reader
 # reader.py
 
+import re
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-import re
 from typing import BinaryIO
 
 from xer_reader.src.table_info import TableInfo
-
 
 REQUIRED_TABLES = {"CALENDAR", "PROJECT", "PROJWBS", "TASK", "TASKPRED"}
 
@@ -17,13 +16,6 @@ class RegEx(Enum):
     file_version = re.compile(r"(?<=ERMHDR\t)\d+\.\d+")
     table_names = re.compile(r"(?<=%T\t)[A-Z]+")
     ermhdr = re.compile(r"(?<=ERMHDR\t).+")
-
-
-def _parse_file_info(data: str) -> list:
-    ermhdr = RegEx.ermhdr.value.search(data)
-    if not ermhdr:
-        raise ValueError("Invalid XER File")
-    return ermhdr.group().split("\t")
 
 
 class Reader:
@@ -63,11 +55,15 @@ class Reader:
 
             for row in data.values():
                 for key, val in row.items():
-                    if val != "" and key.endswith("_id"):
-                        clean_key = _clean_id_label(key)
-                        if clean_key != "pobs_parent_id" and val not in self.tables.get(id_map[clean_key], {}):
-                            if key == "parent_wbs_id" and row["proj_node_flag"] == "Y":
-                                continue
+                    if val == "":
+                        continue
+                    if not key.endswith("_id"):
+                        continue
+                    if key == "parent_wbs_id" and row["proj_node_flag"] == "Y":
+                        continue
+                    clean_key = key if key in id_map else _clean_id_label(key)
+                    if clean_key:
+                        if val not in self.tables.get(id_map[clean_key], {}):
                             errors.add(f"Orphan data {key} [{val}] in table {table}")
 
         return list(errors)
@@ -76,22 +72,13 @@ class Reader:
         # TODO
         pass
 
-def _clean_id_label(val: str) -> str:
-    prefixes = ("base_", "last_", "new_", "parent_", "pred_", "sum_base_")
+
+def _clean_id_label(label: str) -> str | None:
+    prefixes = ("base_", "last_", "new_", "parent_", "pred_")
     for prefix in prefixes:
-        if val.startswith(prefix):
-            return val.replace(prefix, "")
-        
-    if val == "fk_id":
-        return "task_id"
-    # if val.startswith("parent_"):
-    #     return val.replace("parent_", "")
-    # if val.startswith("pred_"):
-    #     return val.replace("pred_", "")
-    # if val.startswith("base_"):
-    #     return val.replace("base_", "")
-    
-    return val
+        if label.startswith(prefix):
+            return label.replace(prefix, "")
+    return
 
 
 def _clean_row(row: str) -> list[str]:
@@ -107,6 +94,13 @@ def _clean_value(val: str) -> str:
     if val == "":
         return ""
     return val.strip()
+
+
+def _parse_file_info(data: str) -> list[str]:
+    ermhdr = RegEx.ermhdr.value.search(data)
+    if not ermhdr:
+        raise ValueError("Invalid XER File")
+    return ermhdr.group().split("\t")
 
 
 def _parse_table(table: str) -> dict[str, dict[str, dict[str, str]]]:
