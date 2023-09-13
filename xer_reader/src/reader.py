@@ -1,22 +1,16 @@
 # xer-reader
 # reader.py
 
+import json
 import re
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from typing import BinaryIO
 
 from xer_reader.src.table_info import TableInfo
 
 REQUIRED_TABLES = {"CALENDAR", "PROJECT", "PROJWBS", "TASK", "TASKPRED"}
-
-
-class RegEx(Enum):
-    file_version = re.compile(r"(?<=ERMHDR\t)\d+\.\d+")
-    table_names = re.compile(r"(?<=%T\t)[A-Z]+")
-    ermhdr = re.compile(r"(?<=ERMHDR\t).+")
-
+date_format = "%Y-%m-%d"
 
 class Reader:
     CODEC = "cp1252"
@@ -26,7 +20,7 @@ class Reader:
 
         _file_info = _parse_file_info(self.data)
         self.export_version: str = _file_info[0]
-        self.export_date: datetime = datetime.strptime(_file_info[1], "%Y-%m-%d")
+        self.export_date: datetime = datetime.strptime(_file_info[1], date_format)
         self.export_user: str = _file_info[4]
         self.tables: dict[str, dict[str, dict[str, str]]] = {
             name: rows
@@ -72,6 +66,21 @@ class Reader:
         # TODO
         pass
 
+    def to_json(self) -> None:
+        file = Path.joinpath(Path.home(), "xer_file.json")
+        json_data = {
+            "ERMHDR": {
+                "version": self.export_version,
+                "date": self.export_date.strftime(date_format),
+                "user": self.export_user,
+            },
+            **self.tables
+        }
+        with file.open("w") as outfile:
+            outfile.write(json.dumps(json_data, indent=4))
+
+        del json_data
+
 
 def _clean_id_label(label: str) -> str | None:
     prefixes = ("base_", "last_", "new_", "parent_", "pred_")
@@ -81,23 +90,8 @@ def _clean_id_label(label: str) -> str | None:
     return
 
 
-def _clean_row(row: str) -> list[str]:
-    """Strips white space from last value in row"""
-    row_values = row.split("\t")[1:]
-    if row_values:
-        row_values[-1] = _clean_value(row_values[-1])
-    return row_values
-
-
-def _clean_value(val: str) -> str:
-    """Strips white space from a value"""
-    if val == "":
-        return ""
-    return val.strip()
-
-
 def _parse_file_info(data: str) -> list[str]:
-    ermhdr = RegEx.ermhdr.value.search(data)
+    ermhdr = re.search(r"(?<=ERMHDR\t).+", data)
     if not ermhdr:
         raise ValueError("Invalid XER File")
     return ermhdr.group().split("\t")
@@ -109,7 +103,7 @@ def _parse_table(table: str) -> dict[str, dict[str, dict[str, str]]]:
     lines: list[str] = table.split("\n")
     name = lines.pop(0).strip()  # First line is the table name
     cols = lines.pop(0).strip().split("\t")[1:]  # Second line is the column labels
-    data = [dict(zip(cols, _clean_row(row))) for row in lines if row.startswith("%R")]
+    data = [dict(zip(cols, _split_row(row))) for row in lines if row.startswith("%R")]
 
     unique_id = TableInfo[name].value["key"]
     return {
@@ -134,3 +128,18 @@ def _read_file(file: str | Path | BinaryIO) -> str:
         raise ValueError("ValueError: invalid XER file")
 
     return file_contents
+
+
+def _split_row(row: str) -> list[str]:
+    """Splits row into values."""
+    row_values = row.split("\t")[1:]
+    if row_values:
+        row_values[-1] = _strip_value(row_values[-1])
+    return row_values
+
+
+def _strip_value(val: str) -> str:
+    """Strips white space from a value"""
+    if val == "":
+        return ""
+    return val.strip()
