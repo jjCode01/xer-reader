@@ -12,6 +12,7 @@ from xer_reader.src.table_info import TableInfo
 REQUIRED_TABLES = {"CALENDAR", "PROJECT", "PROJWBS", "TASK", "TASKPRED"}
 date_format = "%Y-%m-%d"
 
+
 class Reader:
     CODEC = "cp1252"
 
@@ -62,29 +63,34 @@ class Reader:
 
         return list(errors)
 
-
-    def delete_table(self, table_name: str):
-        # TODO
-        search = re.compile(rf"(?<=%T\t{table_name.upper()}\n)(.|\s)*?(?=%T|%E)")
+    def delete_tables(self, *table_names: str) -> str:
+        rev_data = self.data
+        for name in table_names:
+            table_search = re.compile(rf"%T\t{name.upper()}\n(.|\s)*?(?=%T|%E)")
+            rev_data = table_search.sub("", rev_data)
+        return rev_data
 
     def to_csv(self):
         # TODO
         pass
 
-    def to_json(self) -> None:
-        file = Path.joinpath(Path.home(), "xer_file.json")
+    def to_json(self, *tables: str) -> str:
+        out_data = {}
+        if not tables:
+            out_data = self.tables
+        else:
+            out_data = {
+                name: table for name, table in self.tables.items() if name in tables
+            }
         json_data = {
             "ERMHDR": {
                 "version": self.export_version,
                 "date": self.export_date.strftime(date_format),
                 "user": self.export_user,
             },
-            **self.tables
+            **out_data,
         }
-        with file.open("w") as outfile:
-            outfile.write(json.dumps(json_data, indent=4))
-
-        del json_data
+        return json.dumps(json_data, indent=4)
 
 
 def _clean_id_label(label: str) -> str | None:
@@ -148,3 +154,22 @@ def _strip_value(val: str) -> str:
     if val == "":
         return ""
     return val.strip()
+
+
+if __name__ == "__main__":
+    dir = Path(
+        "/home/jesse/Documents/Projects/Straub Construction/Ft Carson ATTK Hangar"
+    )
+    file_name = "ATTK37"
+    reader = Reader(dir.joinpath(f"{file_name}.xer"))
+    reader.data = reader.delete_tables("UDFTYPE", "UDFVALUE")
+
+    out_file = dir.joinpath(f"{file_name}_clean.xer")
+    with out_file.open("w", encoding=reader.CODEC) as f:
+        f.write(reader.data)
+
+    json_file = dir.joinpath(f"{file_name}.json")
+    with json_file.open("w") as f:
+        f.write(reader.to_json("TASK"))
+
+    print("Done")
