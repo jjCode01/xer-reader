@@ -1,6 +1,7 @@
 # xer-reader
 # reader.py
 
+import csv
 import json
 import re
 from datetime import datetime
@@ -29,7 +30,7 @@ class Reader:
             for name, rows in _parse_table(table).items()
         }
 
-    def errors(self) -> list[str]:
+    def check_errors(self) -> list[str]:
         errors = set()
 
         id_map = {
@@ -70,9 +71,14 @@ class Reader:
             rev_data = table_search.sub("", rev_data)
         return rev_data
 
-    def to_csv(self):
-        # TODO
-        pass
+    def to_csv(self, file_directory: str | None = None):
+        if file_directory:
+            if not Path(file_directory).is_dir():
+                raise FileNotFoundError(f"{file_directory} does not exist")
+        for name, table in self.tables.items():
+            _write_table_to_csv(
+                name, table, Path(file_directory or Path.cwd().joinpath("csv_files"))
+            )
 
     def to_json(self, *tables: str) -> str:
         out_data = {}
@@ -92,6 +98,16 @@ class Reader:
         }
         return json.dumps(json_data, indent=4)
 
+def _write_table_to_csv(name: str, table: dict, file_directory: Path) -> None:
+    if not file_directory.is_dir():
+        Path.mkdir(file_directory)
+    labels = list(list(table.values())[0].keys())
+    with file_directory.joinpath(f"{name}.csv").open("w") as f:
+        writer = csv.DictWriter(f, fieldnames=labels, delimiter="\t")
+        writer.writeheader()
+        for row in table.values():
+            writer.writerow(row)
+    f.close()
 
 def _clean_id_label(label: str) -> str | None:
     prefixes = ("base_", "last_", "new_", "parent_", "pred_")
@@ -171,5 +187,7 @@ if __name__ == "__main__":
     json_file = dir.joinpath(f"{file_name}.json")
     with json_file.open("w") as f:
         f.write(reader.to_json("TASK"))
+
+    reader.to_csv(r"/home/jesse/csv_files")
 
     print("Done")
