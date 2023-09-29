@@ -125,7 +125,7 @@ class TableInfo(Enum):
     PROJCOST = {
         "key": "cost_item_id",
         "description": "Project Expenses",
-        "depends": [],
+        "depends": ["TASK"],
     }
     PROJECT = {
         "key": "proj_id",
@@ -150,7 +150,7 @@ class TableInfo(Enum):
     PROJPCAT = {
         "key": None,
         "description": "Project Code Assignments",
-        "depends": ["PROJECT", "PCATVAL", "PCATTYPE"],
+        "depends": ["PCATVAL", "PCATTYPE"],
     }
     PROJTHRS = {
         "key": "thresh_id",
@@ -265,7 +265,7 @@ class TableInfo(Enum):
     TASK = {
         "key": "task_id",
         "description": "Activities",
-        "depends": ["PROJECT", "PROJWBS", "CALENDAR"],
+        "depends": ["CALENDAR"],
     }
     TASKACTV = {
         "key": None,

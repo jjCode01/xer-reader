@@ -6,31 +6,40 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Any
 
 from xer_reader.src.table_info import TableInfo
 
-REQUIRED_TABLES = {"CALENDAR", "PROJECT", "PROJWBS", "TASK", "TASKPRED"}
+REQUIRED_TABLES = {"CALENDAR", "CURRTYPE", "PROJECT", "PROJWBS"}
 date_format = "%Y-%m-%d"
 
 
-class Reader:
+class XerReader:
+    """Open a XER file exported from Primavera P6 and read its contents."""
+
     CODEC = "cp1252"
+    file_name: str
+    data: str
 
     def __init__(self, file: str | Path | BinaryIO) -> None:
-        self.data: str = _read_file(file)
+        self.file_name, self.data = _read_file(file)
 
         _file_info = _parse_file_info(self.data)
         self.export_version: str = _file_info[0]
         self.export_date: datetime = datetime.strptime(_file_info[1], date_format)
         self.export_user: str = _file_info[4]
-        self.tables: dict[str, dict[str, dict[str, str]]] = {
+        self.tables: dict[str, dict[int, dict[str, str]]] = {
             name: rows
             for table in self.data.split("%T\t")[1:]
             for name, rows in _parse_table(table).items()
         }
 
     def check_errors(self) -> list[str]:
+        """Check XER file for missing tables and orphan data
+
+        Returns:
+            list[str]: Descriptions of missing information
+        """
         errors = set()
 
         id_map = {
@@ -65,42 +74,92 @@ class Reader:
         return list(errors)
 
     def delete_tables(self, *table_names: str) -> str:
+        """
+        Delete tables from XER file.
+        Does not modify `XerReader.data` attribute, but returns a new string.
+
+        Args:
+            *table_names (str): table names to remove from XER file
+
+        Returns:
+            str: XER File String with tables removed
+        """
+        if not table_names:
+            raise ValueError("Must pass at least one table name")
+
         rev_data = self.data
         for name in table_names:
             table_search = re.compile(rf"%T\t{name.upper()}\n(.|\s)*?(?=%T|%E)")
             rev_data = table_search.sub("", rev_data)
         return rev_data
 
-    def to_csv(self, file_directory: str | None = None):
-        if file_directory:
-            if not Path(file_directory).is_dir():
-                raise FileNotFoundError(f"{file_directory} does not exist")
+    def get_table_str(self, table_name: str) -> str:
+        """Get string for a specific table in the XER file.
+
+        Args:
+            table_name (str): Name of table
+
+        Returns:
+            str: Table header and rows
+        """
+        re_search = re.compile(rf"(?<=%T\t{table_name.upper()}\n)(.|\s)*?(?=%T|%E)")
+        if found_table := re_search.search(self.data):
+            return re.sub(r"%[TFR]\t", "", found_table.group())
+        return ""
+
+    def to_csv(self, file_directory: str | Path = Path.cwd()):
+        """
+        Generate a CSV file for each table in the XER file.
+        Uses `tab` as the delimiter.
+
+        Args:
+            file_directory (str | Path, optional): Directory to save CSV files.
+            Defaults to current working directory.
+        """
         for name, table in self.tables.items():
-            _write_table_to_csv(
-                name, table, Path(file_directory or Path.cwd().joinpath("csv_files"))
-            )
+            _write_table_to_csv(f"{self.file_name}_{name}", table, Path(file_directory))
 
     def to_json(self, *tables: str) -> str:
+        """Generate a json compliant string representation of tables in the XER file
+
+        Returns:
+            str: json compliant string representation of XER tables
+        """
         out_data = {}
         if not tables:
             out_data = self.tables
         else:
             out_data = {
-                name: table for name, table in self.tables.items() if name in tables
+                name: _validate_types(table)
+                for name, table in self.tables.items()
+                if name in tables
             }
-        json_data = {
-            "ERMHDR": {
-                "version": self.export_version,
-                "date": self.export_date.strftime(date_format),
-                "user": self.export_user,
-            },
-            **out_data,
-        }
+        json_data = {self.file_name: {**out_data}}
         return json.dumps(json_data, indent=4)
 
+
+def _validate_types(table: dict[int, dict[str, str]]) -> dict[int, dict[str, Any]]:
+    validated_dict: dict[int, dict[str, Any]] = {}
+    for key, row in table.items():
+        validated_dict[key] = {}
+        for label, val in row.items():
+            if val == "":
+                validated_dict[key][label] = None
+            elif label.endswith("_name"):
+                validated_dict[key][label] = val
+            elif val.isdigit():
+                validated_dict[key][label] = int(val)
+            elif re.fullmatch(r"\d+\.\d+", val):
+                validated_dict[key][label] = float(val)
+            elif label.endswith("_flag"):
+                validated_dict[key][label] = val == "Y"
+            else:
+                validated_dict[key][label] = val
+
+    return validated_dict
+
+
 def _write_table_to_csv(name: str, table: dict, file_directory: Path) -> None:
-    if not file_directory.is_dir():
-        Path.mkdir(file_directory)
     labels = list(list(table.values())[0].keys())
     with file_directory.joinpath(f"{name}.csv").open("w") as f:
         writer = csv.DictWriter(f, fieldnames=labels, delimiter="\t")
@@ -108,6 +167,7 @@ def _write_table_to_csv(name: str, table: dict, file_directory: Path) -> None:
         for row in table.values():
             writer.writerow(row)
     f.close()
+
 
 def _clean_id_label(label: str) -> str | None:
     prefixes = ("base_", "last_", "new_", "parent_", "pred_")
@@ -124,7 +184,7 @@ def _parse_file_info(data: str) -> list[str]:
     return ermhdr.group().split("\t")
 
 
-def _parse_table(table: str) -> dict[str, dict[str, dict[str, str]]]:
+def _parse_table(table: str) -> dict[str, dict[int, dict[str, str]]]:
     """Parse table name, columns, and rows"""
 
     lines: list[str] = table.split("\n")
@@ -135,26 +195,29 @@ def _parse_table(table: str) -> dict[str, dict[str, dict[str, str]]]:
     unique_id = TableInfo[name].value["key"]
     return {
         name: {
-            entry[unique_id] if unique_id else str(i): entry
+            int(entry[unique_id]) if unique_id else i: entry
             for i, entry in enumerate(data, 1)
         }
     }
 
 
-def _read_file(file: str | Path | BinaryIO) -> str:
+def _read_file(file: str | Path | BinaryIO) -> tuple[str, str]:
     file_contents = ""
+    file_name = ""
     if isinstance(file, (str, Path)):
         # Path directory to file
-        with open(file, encoding=Reader.CODEC, errors="ignore") as f:
+        file_name = Path(file).stem
+        with open(file, encoding=XerReader.CODEC, errors="ignore") as f:
             file_contents = f.read()
     else:
         # Binary file from requests, Flask, FastAPI, etc...
-        file_contents = file.read().decode(Reader.CODEC, errors="ignore")
+        file_contents = file.read().decode(XerReader.CODEC, errors="ignore")
+        file_name = file.name
 
     if not file_contents.startswith("ERMHDR"):
         raise ValueError("ValueError: invalid XER file")
 
-    return file_contents
+    return file_name, file_contents
 
 
 def _split_row(row: str) -> list[str]:
@@ -177,7 +240,7 @@ if __name__ == "__main__":
         "/home/jesse/Documents/Projects/Straub Construction/Ft Carson ATTK Hangar"
     )
     file_name = "ATTK37"
-    reader = Reader(dir.joinpath(f"{file_name}.xer"))
+    reader = XerReader(dir.joinpath(f"{file_name}.xer"))
     reader.data = reader.delete_tables("UDFTYPE", "UDFVALUE")
 
     out_file = dir.joinpath(f"{file_name}_clean.xer")
@@ -186,8 +249,12 @@ if __name__ == "__main__":
 
     json_file = dir.joinpath(f"{file_name}.json")
     with json_file.open("w") as f:
-        f.write(reader.to_json("TASK"))
+        f.write(reader.to_json("ACTVTYPE", "ACTVCODE"))
 
-    reader.to_csv(r"/home/jesse/csv_files")
+    # reader.to_csv()
+
+    # print(reader.get_table_str("TEST"))
+
+    # print(reader.tables["FINDATES"])
 
     print("Done")

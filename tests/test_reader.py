@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 import tests.config as config
 
-from xer_reader.src.reader import Reader
+from xer_reader.src.reader import XerReader
 
 date_format = "%Y-%m-%d"
 
@@ -34,7 +34,7 @@ def create_test_file(test_file: Path, func) -> None:
 
 
 def generate_test_xer_file_data(file: Path) -> dict:
-    reader = Reader(file)
+    reader = XerReader(file)
 
     return {
         str(file.absolute()): {
@@ -59,7 +59,7 @@ def get_xer_files() -> list:
     return xer_files
 
 
-def process_xer_file(xer: Reader) -> dict:
+def process_xer_file(xer: XerReader) -> dict:
     return {
         "export_date": xer.export_date.strftime(date_format),
         "export_user": xer.export_user,
@@ -83,7 +83,7 @@ class TestReader(unittest.TestCase):
 
         print(f"Running tests on {len(xer_data)} .xer files.")
         for file, data in tqdm(xer_data.items()):
-            reader = Reader(file)
+            reader = XerReader(file)
             self.assertIsInstance(reader.export_date, datetime)
             self.assertRegex(reader.export_version, re.compile(r"\d+\.\d+"))
             self.assertGreaterEqual(len(reader.tables["PROJECT"]), 1)
