@@ -6,7 +6,7 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import BinaryIO, Any
+from typing import BinaryIO
 
 from xer_reader.src.table_info import TableInfo
 
@@ -107,7 +107,7 @@ class XerReader:
             return re.sub(r"%[TFR]\t", "", found_table.group())
         return ""
 
-    def to_csv(self, file_directory: str | Path = Path.cwd()):
+    def to_csv(self, file_directory: str | Path = Path.cwd()) -> None:
         """
         Generate a CSV file for each table in the XER file.
         Uses `tab` as the delimiter.
@@ -130,33 +130,10 @@ class XerReader:
             out_data = self.tables
         else:
             out_data = {
-                name: _validate_types(table)
-                for name, table in self.tables.items()
-                if name in tables
+                name: table for name, table in self.tables.items() if name in tables
             }
         json_data = {self.file_name: {**out_data}}
         return json.dumps(json_data, indent=4)
-
-
-def _validate_types(table: dict[int, dict[str, str]]) -> dict[int, dict[str, Any]]:
-    validated_dict: dict[int, dict[str, Any]] = {}
-    for key, row in table.items():
-        validated_dict[key] = {}
-        for label, val in row.items():
-            if val == "":
-                validated_dict[key][label] = None
-            elif label.endswith("_name"):
-                validated_dict[key][label] = val
-            elif val.isdigit():
-                validated_dict[key][label] = int(val)
-            elif re.fullmatch(r"\d+\.\d+", val):
-                validated_dict[key][label] = float(val)
-            elif label.endswith("_flag"):
-                validated_dict[key][label] = val == "Y"
-            else:
-                validated_dict[key][label] = val
-
-    return validated_dict
 
 
 def _write_table_to_csv(name: str, table: dict, file_directory: Path) -> None:
@@ -233,28 +210,3 @@ def _strip_value(val: str) -> str:
     if val == "":
         return ""
     return val.strip()
-
-
-if __name__ == "__main__":
-    dir = Path(
-        "/home/jesse/Documents/Projects/Straub Construction/Ft Carson ATTK Hangar"
-    )
-    file_name = "ATTK37"
-    reader = XerReader(dir.joinpath(f"{file_name}.xer"))
-    reader.data = reader.delete_tables("UDFTYPE", "UDFVALUE")
-
-    out_file = dir.joinpath(f"{file_name}_clean.xer")
-    with out_file.open("w", encoding=reader.CODEC) as f:
-        f.write(reader.data)
-
-    json_file = dir.joinpath(f"{file_name}.json")
-    with json_file.open("w") as f:
-        f.write(reader.to_json("ACTVTYPE", "ACTVCODE"))
-
-    # reader.to_csv()
-
-    # print(reader.get_table_str("TEST"))
-
-    # print(reader.tables["FINDATES"])
-
-    print("Done")
