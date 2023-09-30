@@ -23,9 +23,9 @@ pip3 install xer-reader
 
 ## Usage  
 
-Import the `XerReader` class from `xer-reader`.
+Import the `XerReader` class from `xer_reader`.
 ```python
-from xer-reader import XerReader
+from xer_reader import XerReader
 ```
 
 Create a new instance of a `XerReader` passing in the XER file as an argument. `XerReader` can accept the file path represented as a `str` or pathlib `Path` object, or a Binary file received as a response from requests, Flask, FastAPI, etc...
