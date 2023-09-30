@@ -64,27 +64,69 @@ def process_xer_file(xer: XerReader) -> dict:
         "export_date": xer.export_date.strftime(date_format),
         "export_user": xer.export_user,
         "export_version": xer.export_version,
-        "errors": xer.errors(),
-        **{name: len(entries) for name, entries in xer.tables.items()}
+        "errors": xer.check_errors(),
+        **{name: len(entries) for name, entries in xer.tables.items()},
     }
 
 
 class TestReader(unittest.TestCase):
     def setUp(self) -> None:
         self.xer_files: Path = Path(r"./tests/fixtures/xer_files.json")
+        self.temp_folder = Path.cwd().joinpath("temp")
+        self.files = get_xer_files()
 
         if not self.xer_files.is_file():
             print("Creating xer data json file...")
             create_test_file(self.xer_files, generate_test_xer_file_data)
 
-    def test_reader(self):
-        with self.xer_files.open() as f:
-            xer_data: dict = json.load(f)
+    def tearDown(self) -> None:
+        if self.temp_folder.is_dir():
+            for file in self.temp_folder.glob("*.*"):
+                Path.unlink(file)
+            self.temp_folder.rmdir()
 
-        print(f"Running tests on {len(xer_data)} .xer files.")
-        for file, data in tqdm(xer_data.items()):
+    def test_reader(self):
+        print(f"Running XER Reader tests on {len(self.files)} .xer files.")
+        for file in tqdm(self.files):
             reader = XerReader(file)
             self.assertIsInstance(reader.export_date, datetime)
             self.assertRegex(reader.export_version, re.compile(r"\d+\.\d+"))
-            self.assertGreaterEqual(len(reader.tables["PROJECT"]), 1)
-            self.assertGreaterEqual(len(reader.tables["PROJWBS"]), 1)
+            for table in reader.tables.values():
+                self.assertGreaterEqual(len(table), 1)
+            
+
+    def test_delete_table(self):
+        print(f"Running delete_table tests on {len(self.files)} .xer files.")
+        for file in tqdm(self.files):
+            reader = XerReader(file)
+            for table in reader.tables.keys():
+                self.assertNotIn("%T\t{table}\n", reader.delete_tables(table))
+
+
+    def test_get_table_str(self):
+        print(f"Running get_table_str tests on {len(self.files)} .xer files.")
+        for file in tqdm(self.files):
+            reader = XerReader(file)
+            self.assertEqual(reader.get_table_str("TEST_TABLE"), "")
+            self.assertEqual(reader.get_table_str("CALENDAR")[:8], "clndr_id")
+            self.assertEqual(reader.get_table_str("PROJECT")[:7], "proj_id")
+            self.assertEqual(reader.get_table_str("PROJWBS")[:6], "wbs_id")
+
+    def test_to_csv(self):
+        print(f"Running to_csv tests on {len(self.files)} .xer files.")
+        for file in tqdm(self.files):
+            reader = XerReader(file)
+            temp_folder = Path.cwd().joinpath("temp")
+            if not temp_folder.is_dir():
+                Path.mkdir(temp_folder)
+
+            reader.to_csv(temp_folder)
+
+            for table_name in reader.tables.keys():
+                csv_file = temp_folder.joinpath(f"{reader.file_name}_{table_name}.csv")
+                self.assertTrue(
+                    csv_file.is_file(),
+                    f"{table_name}.csv",
+                )
+                if csv_file.is_file():
+                    Path.unlink(csv_file)
