@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from xer_reader.src.table import Table
-from xer_reader.src.table_info import TableInfo
+from xer_reader.src.table_data import table_data
 
 REQUIRED_TABLES = {"CALENDAR", "CURRTYPE", "PROJECT", "PROJWBS"}
 date_format = "%Y-%m-%d"
@@ -40,7 +40,7 @@ class XerReader:
         errors = set()
 
         id_map = {
-            table.value["key"]: table.name for table in TableInfo if table.value["key"]
+            data["key"]: table for table, data in table_data.items() if data["key"]
         }
 
         tables = self.parse_tables()
@@ -52,10 +52,9 @@ class XerReader:
 
         # Check for required table pairs
         for table in tables.values():
-            table_info = TableInfo[table.name].value
-            for t in table_info["depends"]:
-                if t not in tables:
-                    errors.add(f"Missing Table {t} Required for Table {table}")
+            for table2 in table.depends:
+                if table2 not in tables:
+                    errors.add(f"Missing Table {table2} Required for Table {table}")
 
             for row in table.entries:
                 for key, val in row.items():
@@ -120,7 +119,7 @@ class XerReader:
         if found_table := re_search.search(self.data):
             return re.sub(r"%[TFR]\t", "", found_table.group())
         return ""
-    
+
     def has_table(self, table_name: str) -> bool:
         """Check if a table is included in the XER file.
 
@@ -141,8 +140,8 @@ class XerReader:
             dict[str, Table]: dict of XER Tables
         """
         tables = {}
-        for table_data in self.data.split("%T\t")[1:]:
-            name, table = _parse_table(table_data)
+        for table_str in self.data.split("%T\t")[1:]:
+            name, table = _parse_table(table_str)
             tables[name] = table
         return tables
 
@@ -168,10 +167,13 @@ class XerReader:
         """
         out_data = {}
         if not tables:
-            out_data = self.parse_tables()
+            out_data = {
+                name: _entry_by_key(table)
+                for name, table in self.parse_tables().items()
+            }
         else:
             out_data = {
-                name: table
+                name: _entry_by_key(table)
                 for name, table in self.parse_tables().items()
                 if name in tables
             }
@@ -187,7 +189,14 @@ def _clean_foreign_key_label(label: str) -> str | None:
     return
 
 
+def _entry_by_key(table: Table) -> dict | list:
+    if not table.key:
+        return table.entries
+    return {entry[table.key]: entry for entry in table.entries}
+
+
 def _parse_file_info(data: str) -> list[str]:
+    """Parse file header"""
     ermhdr = re.search(r"(?<=ERMHDR\t).+", data)
     if not ermhdr:
         raise ValueError("Invalid XER File")
