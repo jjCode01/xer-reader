@@ -1,6 +1,12 @@
 # Changelog - xer-reader
 
-## 0.1.2 - 2023-10-01
+## 0.1.3 - 2023-10-06
+
+General code clean up.
+
+---
+
+## 0.1.2 - 2023-10-05
 
 ### Added
 
