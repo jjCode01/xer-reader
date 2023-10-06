@@ -52,16 +52,18 @@ class TestReader(unittest.TestCase):
         print(f"Running XER Reader tests on {len(self.files)} .xer files.")
         for file in tqdm(self.files):
             reader = XerReader(file)
+            tables = reader.parse_tables()
             self.assertIsInstance(reader.export_date, datetime)
             self.assertRegex(reader.export_version, re.compile(r"\d+\.\d+"))
-            for table in reader.tables.values():
+            for table in tables:
                 self.assertGreaterEqual(len(table), 1)
 
     def test_delete_table(self):
         print(f"Running delete_table tests on {len(self.files)} .xer files.")
         for file in tqdm(self.files):
             reader = XerReader(file)
-            for table in reader.tables.keys():
+            tables = reader.parse_tables()
+            for table in tables.keys():
                 self.assertNotIn("%T\t{table}\n", reader.delete_tables(table))
 
     def test_get_table_str(self):
@@ -77,13 +79,14 @@ class TestReader(unittest.TestCase):
         print(f"Running to_csv tests on {len(self.files)} .xer files.")
         for file in tqdm(self.files):
             reader = XerReader(file)
+            tables = reader.parse_tables()
             temp_folder = Path.cwd().joinpath("temp")
             if not temp_folder.is_dir():
                 Path.mkdir(temp_folder)
 
             reader.to_csv(temp_folder)
 
-            for table_name in reader.tables.keys():
+            for table_name in tables.keys():
                 csv_file = temp_folder.joinpath(f"{reader.file_name}_{table_name}.csv")
                 self.assertTrue(
                     csv_file.is_file(),

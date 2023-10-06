@@ -1,6 +1,6 @@
 # Xer-Reader
 
-Read the contents of a Primavera P6 XER file useing Python.  
+Read the contents of a Primavera P6 XER file using Python.  
 
 Xer-Reader makes it easy to read, parse, and convert the data in a XER file to other formats.
 
@@ -42,7 +42,6 @@ reader = XerReader(file)
 * `export_user` [str] - *The P6 user who export the XER file.*
 * `export_version` [str] - *The P6 verison used to export the XER file.*
 * `file_name` [str] - *The name of the file without the '.xer' extension.*
-* `tables` [dict] - *The tables included in the XER file parsed as dictionary objects.*
 
 ### Methods
 
@@ -64,8 +63,17 @@ with open("New_XER.xer", "w", encoding=XerReader.CODEC) as new_xer_file:
 new_file.close()
 ```
 
+**`get_table_names()`** -> *list[str]*  
+Returns a list of table names included in the XER file.  
+
 **`get_table_str(table_name: str)`** -> *str*  
-Get a string for a specific table in the XER file.
+Returns a string for a specific table in the XER file.
+
+**`has_table(table_name: str)`** -> *bool*  
+Return True if table (`table_name`) if found in the XER file.
+
+**`parse_tables()`** -> *dict[str, Table]*  
+Returns a dictionary with the table name as the key and a `Table` object as the value.  
 
 **`to_csv(file_directory: str | Path)`** -> *None*  
 Generate a CSV file for each table in the XER file using 'tab' as the delimiter. CSV files will be created in the current working directory.   

@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO
 
+from xer_reader.src.table import Table
 from xer_reader.src.table_info import TableInfo
 
 REQUIRED_TABLES = {"CALENDAR", "CURRTYPE", "PROJECT", "PROJWBS"}
@@ -25,14 +26,10 @@ class XerReader:
         self.file_name, self.data = _read_file(file)
 
         _file_info = _parse_file_info(self.data)
+        self.currency: str = _file_info[7]
         self.export_version: str = _file_info[0]
         self.export_date: datetime = datetime.strptime(_file_info[1], date_format)
         self.export_user: str = _file_info[4]
-        self.tables: dict[str, dict[int, dict[str, str]]] = {
-            name: rows
-            for table in self.data.split("%T\t")[1:]
-            for name, rows in _parse_table(table).items()
-        }
 
     def check_errors(self) -> list[str]:
         """Check XER file for missing tables and orphan data
@@ -46,19 +43,21 @@ class XerReader:
             table.value["key"]: table.name for table in TableInfo if table.value["key"]
         }
 
+        tables = self.parse_tables()
+
         # Check for minimum tables required to be in the XER
         for name in REQUIRED_TABLES:
-            if name not in self.tables:
+            if name not in tables:
                 errors.add(f"Missing Required Table {name}")
 
         # Check for required table pairs
-        for table, data in self.tables.items():
-            table_info = TableInfo[table].value
+        for table in tables.values():
+            table_info = TableInfo[table.name].value
             for t in table_info["depends"]:
-                if t not in self.tables:
+                if t not in tables:
                     errors.add(f"Missing Table {t} Required for Table {table}")
 
-            for row in data.values():
+            for row in table.entries:
                 for key, val in row.items():
                     if val == "":
                         continue
@@ -66,10 +65,16 @@ class XerReader:
                         continue
                     if key == "parent_wbs_id" and row["proj_node_flag"] == "Y":
                         continue
-                    clean_key = key if key in id_map else _clean_id_label(key)
+                    clean_key = key if key in id_map else _clean_foreign_key_label(key)
                     if clean_key:
-                        if val not in self.tables.get(id_map[clean_key], {}):
-                            errors.add(f"Orphan data {key} [{val}] in table {table}")
+                        if check_table := tables.get(id_map[clean_key]):
+                            for entry in check_table.entries:
+                                if entry.get(clean_key, "") == val:
+                                    break
+                            else:
+                                errors.add(
+                                    f"Orphan data {key} [{val}] in table {table}"
+                                )
 
         return list(errors)
 
@@ -93,6 +98,15 @@ class XerReader:
             rev_data = table_search.sub("", rev_data)
         return rev_data
 
+    def get_table_names(self) -> list[str]:
+        """Get list of table names included in the XER file.
+
+        Returns:
+            list[str]: list of table names
+        """
+        table_names = re.compile(r"(?<=%T\t)[A-Z]+")
+        return table_names.findall(self.data)
+
     def get_table_str(self, table_name: str) -> str:
         """Get string for a specific table in the XER file.
 
@@ -106,6 +120,31 @@ class XerReader:
         if found_table := re_search.search(self.data):
             return re.sub(r"%[TFR]\t", "", found_table.group())
         return ""
+    
+    def has_table(self, table_name: str) -> bool:
+        """Check if a table is included in the XER file.
+
+        Args:
+            table_name (str): table name
+
+        Returns:
+            bool: True if found; False if not found
+        """
+        return f"%T\t{table_name.upper()}" in self.data
+
+    def parse_tables(self) -> dict[str, Table]:
+        """
+        Parse tables into a dictionary with the table name as the key
+        and a `Table` object as the value.
+
+        Returns:
+            dict[str, Table]: dict of XER Tables
+        """
+        tables = {}
+        for table_data in self.data.split("%T\t")[1:]:
+            name, table = _parse_table(table_data)
+            tables[name] = table
+        return tables
 
     def to_csv(self, file_directory: str | Path = Path.cwd()) -> None:
         """
@@ -116,8 +155,10 @@ class XerReader:
             file_directory (str | Path, optional): Directory to save CSV files.
             Defaults to current working directory.
         """
-        for name, table in self.tables.items():
-            _write_table_to_csv(f"{self.file_name}_{name}", table, Path(file_directory))
+        for table in self.parse_tables().values():
+            _write_table_to_csv(
+                f"{self.file_name}_{table.name}", table, Path(file_directory)
+            )
 
     def to_json(self, *tables: str) -> str:
         """Generate a json compliant string representation of tables in the XER file
@@ -127,26 +168,18 @@ class XerReader:
         """
         out_data = {}
         if not tables:
-            out_data = self.tables
+            out_data = self.parse_tables()
         else:
             out_data = {
-                name: table for name, table in self.tables.items() if name in tables
+                name: table
+                for name, table in self.parse_tables().items()
+                if name in tables
             }
         json_data = {self.file_name: {**out_data}}
-        return json.dumps(json_data, indent=4)
+        return json.dumps(json_data, indent=2)
 
 
-def _write_table_to_csv(name: str, table: dict, file_directory: Path) -> None:
-    labels = list(list(table.values())[0].keys())
-    with file_directory.joinpath(f"{name}.csv").open("w") as f:
-        writer = csv.DictWriter(f, fieldnames=labels, delimiter="\t")
-        writer.writeheader()
-        for row in table.values():
-            writer.writerow(row)
-    f.close()
-
-
-def _clean_id_label(label: str) -> str | None:
+def _clean_foreign_key_label(label: str) -> str | None:
     prefixes = ("base_", "last_", "new_", "parent_", "pred_")
     for prefix in prefixes:
         if label.startswith(prefix):
@@ -161,21 +194,14 @@ def _parse_file_info(data: str) -> list[str]:
     return ermhdr.group().split("\t")
 
 
-def _parse_table(table: str) -> dict[str, dict[int, dict[str, str]]]:
+def _parse_table(table_data: str) -> tuple[str, Table]:
     """Parse table name, columns, and rows"""
 
-    lines: list[str] = table.split("\n")
+    lines: list[str] = table_data.split("\n")
     name = lines.pop(0).strip()  # First line is the table name
     cols = lines.pop(0).strip().split("\t")[1:]  # Second line is the column labels
     data = [dict(zip(cols, _split_row(row))) for row in lines if row.startswith("%R")]
-
-    unique_id = TableInfo[name].value["key"]
-    return {
-        name: {
-            int(entry[unique_id]) if unique_id else i: entry
-            for i, entry in enumerate(data, 1)
-        }
-    }
+    return name, Table(name, cols, data)
 
 
 def _read_file(file: str | Path | BinaryIO) -> tuple[str, str]:
@@ -210,3 +236,12 @@ def _strip_value(val: str) -> str:
     if val == "":
         return ""
     return val.strip()
+
+
+def _write_table_to_csv(name: str, table: Table, file_directory: Path) -> None:
+    with file_directory.joinpath(f"{name}.csv").open("w") as f:
+        writer = csv.DictWriter(f, fieldnames=table.labels, delimiter="\t")
+        writer.writeheader()
+        for row in table.entries:
+            writer.writerow(row)
+    f.close()
