@@ -1,9 +1,10 @@
-from xer_reader.src.table_info import TableInfo
+from xer_reader.src.table_data import table_data
 
 
 class Table:
     """A class representing a P6 table"""
 
+    depends: list[str]
     description: str
     entries: list[dict[str, str]]
     labels: list[str]
@@ -17,11 +18,13 @@ class Table:
         self.entries = entries
         self.labels = labels
         try:
-            self.description = TableInfo[name].value["description"]
-            self.key = TableInfo[name].value["key"]
+            self.description = table_data[name]["description"]
+            self.key = table_data[name]["key"]
+            self.depends = table_data[name]["depends"]
         except KeyError:
             self.description = ""
             self.key = None
+            self.depends = []
 
     def __bool___(self) -> bool:
         return len(self.entries) > 0
