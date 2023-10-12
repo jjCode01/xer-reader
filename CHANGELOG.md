@@ -1,5 +1,11 @@
 # Changelog - xer-reader
 
+## 0.1.4 - 2023-10-12
+
+Access to `Table` class.
+
+---
+
 ## 0.1.3 - 2023-10-06
 
 General code clean up.
