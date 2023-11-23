@@ -28,7 +28,7 @@ Import the `XerReader` class from `xer_reader`.
 from xer_reader import XerReader
 ```
 
-Create a new instance of a `XerReader` passing in the XER file as an argument. `XerReader` can accept the file path represented as a `str` or pathlib `Path` object, or a Binary file received as a response from requests, Flask, FastAPI, etc...
+Create a new instance of an `XerReader` object by passing in the XER file as an argument. `XerReader` can accept the file path represented as a `str` or pathlib `Path` object, or a Binary file received as a response from requests, Flask, FastAPI, etc...
 
 ```python
 file = r"/path/to/file.xer"
@@ -60,14 +60,13 @@ new_xer_data = reader.delete_tables("UDFTYPE", "UDFVALUE")
 
 with open("New_XER.xer", "w", encoding=XerReader.CODEC) as new_xer_file:
     new_xer_file.write(new_xer_data)
-new_file.close()
 ```
 
 **`get_table_names()`** -> *list[str]*  
 Returns a list of table names included in the XER file.  
 
 **`get_table_str(table_name: str)`** -> *str*  
-Returns a string for a specific table in the XER file.
+Returns the tab seperated text for a specific table in the XER file.
 
 **`has_table(table_name: str)`** -> *bool*  
 Return True if table (`table_name`) if found in the XER file.

@@ -1,5 +1,8 @@
-# xer-reader
-# reader.py
+"""
+This module contains the `XerReader class, which represents the contents of
+an XER file exported from Primavera P6.
+
+"""
 
 import csv
 import json
@@ -12,7 +15,7 @@ from xer_reader.src.table import Table
 from xer_reader.src.table_data import table_data
 
 REQUIRED_TABLES = {"CALENDAR", "CURRTYPE", "PROJECT", "PROJWBS"}
-date_format = "%Y-%m-%d"
+DATE_FORMAT = "%Y-%m-%d"
 
 
 class XerReader:
@@ -20,16 +23,26 @@ class XerReader:
 
     CODEC = "cp1252"
     file_name: str
+    """XER file name"""
+
     data: str
+    """XER file data as tab seperated text"""
 
     def __init__(self, file: str | Path | BinaryIO) -> None:
         self.file_name, self.data = _read_file(file)
 
         _file_info = _parse_file_info(self.data)
         self.currency: str = _file_info[7]
+        """(str) Currency type set in P6"""
+
         self.export_version: str = _file_info[0]
-        self.export_date: datetime = datetime.strptime(_file_info[1], date_format)
+        """(str) P6 Version"""
+
+        self.export_date: datetime = datetime.strptime(_file_info[1], DATE_FORMAT)
+        """(datetime) Date the XER file was exported"""
+
         self.export_user: str = _file_info[4]
+        """(str) P6 user name that exported the XER file"""
 
     def check_errors(self) -> list[str]:
         """Check XER file for missing tables and orphan data
