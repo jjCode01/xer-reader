@@ -6,17 +6,14 @@ class Table:
 
     depends: list[str]
     description: str
-    entries: list[dict[str, str]]
-    labels: list[str]
     key: str | None
-    name: str
 
     def __init__(
         self, name: str, labels: list[str], entries: list[dict[str, str]]
     ) -> None:
-        self.name = name
-        self.entries = entries
-        self.labels = labels
+        self.name: str = name
+        self.entries: list[dict[str, str]] = entries
+        self.labels: list[str] = labels
         try:
             self.description = table_data[name]["description"]
             self.key = table_data[name]["key"]
@@ -34,3 +31,7 @@ class Table:
 
     def __str__(self) -> str:
         return self.name
+
+    @property
+    def values(self) -> list[list[str]]:
+        return [list(entry.values()) for entry in self.entries]

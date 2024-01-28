@@ -9,13 +9,12 @@ create an instance of XerReader, and run the assertion tests.
 
 import re
 import unittest
-
 from datetime import datetime
 from pathlib import Path
+
 from tqdm import tqdm
 
 import tests.config as config
-
 from xer_reader.src.reader import XerReader
 
 date_format = "%Y-%m-%d"
@@ -43,6 +42,7 @@ class TestReader(unittest.TestCase):
         self.files = get_xer_files()
 
     def tearDown(self) -> None:
+        """Remove temporary files created during the test."""
         if self.temp_folder.is_dir():
             for file in self.temp_folder.glob("*.*"):
                 Path.unlink(file)

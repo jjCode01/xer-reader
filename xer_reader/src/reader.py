@@ -11,7 +11,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO
 
-from xer_reader.src.table import Table
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from openpyxl.worksheet.table import Table, TableStyleInfo
+
+from xer_reader.src.table import Table as XerTable
 from xer_reader.src.table_data import table_data
 
 REQUIRED_TABLES = {"CALENDAR", "CURRTYPE", "PROJECT", "PROJWBS"}
@@ -144,7 +148,7 @@ class XerReader:
         """
         return f"%T\t{table_name.upper()}" in self.data
 
-    def parse_tables(self) -> dict[str, Table]:
+    def parse_tables(self) -> dict[str, XerTable]:
         """
         Parse tables into a dictionary with the table name as the key
         and a `Table` object as the value.
@@ -171,6 +175,45 @@ class XerReader:
             _write_table_to_csv(
                 f"{self.file_name}_{table.name}", table, Path(file_directory)
             )
+
+    def to_excel(self, file_directory: str | Path = Path.cwd()) -> None:
+        """
+        Generate an Excel file with each table in the XER file on a seperate worksheet.
+
+        Args:
+            file_directory (str | Path, optional): Directory to save CSV files.
+            Defaults to current working directory.
+        """
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "ERMHDR"
+        ws.append(_parse_file_info(self.data))
+
+        ft = Font(bold=True)
+
+        style = TableStyleInfo(
+            name="TableStyleMedium9",
+            showFirstColumn=False,
+            showLastColumn=False,
+            showRowStripes=True,
+            showColumnStripes=True,
+        )
+
+        for name, table in self.parse_tables().items():
+            new_ws = wb.create_sheet(name)
+            new_ws.append(table.labels)
+            for entry in table.entries:
+                new_ws.append(list(entry.values()))
+
+            tab = Table(displayName=name, ref=new_ws.calculate_dimension())
+
+            tab.tableStyleInfo = style
+            new_ws.add_table(tab)
+
+            # for col in range(1, len(table.labels) + 1):
+            #     new_ws.cell(row=1, column=col).font = ft
+
+        wb.save(f"{self.file_name}.xlsx")
 
     def to_json(self, *tables: str) -> str:
         """Generate a json compliant string representation of tables in the XER file
@@ -202,7 +245,7 @@ def _clean_foreign_key_label(label: str) -> str | None:
     return
 
 
-def _entry_by_key(table: Table) -> dict | list:
+def _entry_by_key(table: XerTable) -> dict | list:
     if not table.key:
         return table.entries
     return {entry[table.key]: entry for entry in table.entries}
@@ -216,14 +259,14 @@ def _parse_file_info(data: str) -> list[str]:
     return ermhdr.group().split("\t")
 
 
-def _parse_table(table_data: str) -> tuple[str, Table]:
+def _parse_table(table_data: str) -> tuple[str, XerTable]:
     """Parse table name, columns, and rows"""
 
     lines: list[str] = table_data.split("\n")
     name = lines.pop(0).strip()  # First line is the table name
     cols = lines.pop(0).strip().split("\t")[1:]  # Second line is the column labels
     data = [dict(zip(cols, _split_row(row))) for row in lines if row.startswith("%R")]
-    return name, Table(name, cols, data)
+    return name, XerTable(name, cols, data)
 
 
 def _read_file(file: str | Path | BinaryIO) -> tuple[str, str]:
@@ -260,7 +303,7 @@ def _strip_value(val: str) -> str:
     return val.strip()
 
 
-def _write_table_to_csv(name: str, table: Table, file_directory: Path) -> None:
+def _write_table_to_csv(name: str, table: XerTable, file_directory: Path) -> None:
     with file_directory.joinpath(f"{name}.csv").open("w") as f:
         writer = csv.DictWriter(f, fieldnames=table.labels, delimiter="\t")
         writer.writeheader()
