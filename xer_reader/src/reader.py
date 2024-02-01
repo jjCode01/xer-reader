@@ -12,8 +12,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from openpyxl import Workbook
-from openpyxl.styles import Font
-from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.worksheet.table import Table
 
 from xer_reader.src.table import Table as XerTable
 from xer_reader.src.table_data import table_data
@@ -176,28 +175,15 @@ class XerReader:
                 f"{self.file_name}_{table.name}", table, Path(file_directory)
             )
 
-    def to_excel(self, file_directory: str | Path = Path.cwd()) -> None:
+    def to_excel(self) -> None:
         """
         Generate an Excel file with each table in the XER file on a seperate worksheet.
 
-        Args:
-            file_directory (str | Path, optional): Directory to save CSV files.
-            Defaults to current working directory.
         """
         wb = Workbook()
         ws = wb.active
         ws.title = "ERMHDR"
         ws.append(_parse_file_info(self.data))
-
-        ft = Font(bold=True)
-
-        style = TableStyleInfo(
-            name="TableStyleMedium9",
-            showFirstColumn=False,
-            showLastColumn=False,
-            showRowStripes=True,
-            showColumnStripes=True,
-        )
 
         for name, table in self.parse_tables().items():
             new_ws = wb.create_sheet(name)
@@ -207,11 +193,7 @@ class XerReader:
 
             tab = Table(displayName=name, ref=new_ws.calculate_dimension())
 
-            tab.tableStyleInfo = style
             new_ws.add_table(tab)
-
-            # for col in range(1, len(table.labels) + 1):
-            #     new_ws.cell(row=1, column=col).font = ft
 
         wb.save(f"{self.file_name}.xlsx")
 
