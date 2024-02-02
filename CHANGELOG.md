@@ -1,5 +1,11 @@
 # Changelog - xer-reader
 
+## 0.2.0 - 2024-02-02
+
+Added `to_excel` function. Export the tables in the .xer file to individual spreadsheets in a .xlsx file.
+
+---
+
 ## 0.1.5 - 2023-11-22
 
 * Added docstrings for attributes.

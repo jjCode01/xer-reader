@@ -78,6 +78,10 @@ Returns a dictionary with the table name as the key and a `Table` object as the 
 Generate a CSV file for each table in the XER file using 'tab' as the delimiter. CSV files will be created in the current working directory.   
 Optional: Pass a string or Path object (`file_directory`) to speficy a folder to store the CSV files in.  
 
+**`to_excel()`** -> *None*  
+Generate an Excel (.xlsx) file with each table in the XER file on its own spreadsheet. The Excel file will be create in the 
+current working directory.  
+
 **`to_json(*tables: str)`** -> *str*  
 Generate a json compliant string representation of the tables in the XER file.  
 Optional: Pass in specific table names to include in the json string.
