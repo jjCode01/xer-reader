@@ -14,22 +14,21 @@ from typing import BinaryIO
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table
 
-from xer_reader.src.table import Table as XerTable
+from xer_reader.src.table import XerTable as XerTable
 from xer_reader.src.table_data import table_data
 
-REQUIRED_TABLES = {"CALENDAR", "CURRTYPE", "PROJECT", "PROJWBS"}
 DATE_FORMAT = "%Y-%m-%d"
+REQUIRED_TABLES = {"CALENDAR", "CURRTYPE", "PROJECT", "PROJWBS"}
 
 
 class XerReader:
-    """Open a XER file exported from Primavera P6 and read its contents."""
+    """Open an XER file exported from Primavera P6 and read its contents."""
 
     CODEC = "cp1252"
     file_name: str
     """XER file name"""
-
     data: str
-    """XER file data as tab seperated text"""
+    """XER file raw data as tab seperated text"""
 
     def __init__(self, file: str | Path | BinaryIO) -> None:
         self.file_name, self.data = _read_file(file)
@@ -37,13 +36,10 @@ class XerReader:
         _file_info = _parse_file_info(self.data)
         self.currency: str = _file_info[7]
         """(str) Currency type set in P6"""
-
         self.export_version: str = _file_info[0]
         """(str) P6 Version"""
-
         self.export_date: datetime = datetime.strptime(_file_info[1], DATE_FORMAT)
         """(datetime) Date the XER file was exported"""
-
         self.export_user: str = _file_info[4]
         """(str) P6 user name that exported the XER file"""
 
@@ -59,7 +55,7 @@ class XerReader:
             data["key"]: table for table, data in table_data.items() if data["key"]
         }
 
-        tables = self.parse_tables()
+        tables = self.to_dict()
 
         # Check for minimum tables required to be in the XER
         for name in REQUIRED_TABLES:
@@ -72,7 +68,7 @@ class XerReader:
                 if table2 not in tables:
                     errors.add(f"Missing Table {table2} Required for Table {table}")
 
-            for row in table.entries:
+            for row in table.entries():
                 for key, val in row.items():
                     if val == "":
                         continue
@@ -83,7 +79,7 @@ class XerReader:
                     clean_key = key if key in id_map else _clean_foreign_key_label(key)
                     if clean_key:
                         if check_table := tables.get(id_map[clean_key]):
-                            for entry in check_table.entries:
+                            for entry in check_table.entries():
                                 if entry.get(clean_key, "") == val:
                                     break
                             else:
@@ -147,7 +143,7 @@ class XerReader:
         """
         return f"%T\t{table_name.upper()}" in self.data
 
-    def parse_tables(self) -> dict[str, XerTable]:
+    def to_dict(self) -> dict[str, XerTable]:
         """
         Parse tables into a dictionary with the table name as the key
         and a `Table` object as the value.
@@ -157,8 +153,8 @@ class XerReader:
         """
         tables = {}
         for table_str in self.data.split("%T\t")[1:]:
-            name, table = _parse_table(table_str)
-            tables[name] = table
+            table = XerTable(table_str)
+            tables[table.name] = table
         return tables
 
     def to_csv(self, file_directory: str | Path = Path.cwd()) -> None:
@@ -170,7 +166,7 @@ class XerReader:
             file_directory (str | Path, optional): Directory to save CSV files.
             Defaults to current working directory.
         """
-        for table in self.parse_tables().values():
+        for table in self.to_dict().values():
             _write_table_to_csv(
                 f"{self.file_name}_{table.name}", table, Path(file_directory)
             )
@@ -185,11 +181,11 @@ class XerReader:
         ws.title = "ERMHDR"
         ws.append(_parse_file_info(self.data))
 
-        for name, table in self.parse_tables().items():
+        for name, table in self.to_dict().items():
             new_ws = wb.create_sheet(name)
             new_ws.append(table.labels)
-            for entry in table.entries:
-                new_ws.append(list(entry.values()))
+            for entry in table.rows:
+                new_ws.append(entry)
 
             tab = Table(displayName=name, ref=new_ws.calculate_dimension())
 
@@ -206,13 +202,12 @@ class XerReader:
         out_data = {}
         if not tables:
             out_data = {
-                name: _entry_by_key(table)
-                for name, table in self.parse_tables().items()
+                name: _entry_by_key(table) for name, table in self.to_dict().items()
             }
         else:
             out_data = {
                 name: _entry_by_key(table)
-                for name, table in self.parse_tables().items()
+                for name, table in self.to_dict().items()
                 if name in tables
             }
         json_data = {self.file_name: {**out_data}}
@@ -229,8 +224,8 @@ def _clean_foreign_key_label(label: str) -> str | None:
 
 def _entry_by_key(table: XerTable) -> dict | list:
     if not table.key:
-        return table.entries
-    return {entry[table.key]: entry for entry in table.entries}
+        return table.entries()
+    return {entry[table.key]: entry for entry in table.entries()}
 
 
 def _parse_file_info(data: str) -> list[str]:
@@ -239,16 +234,6 @@ def _parse_file_info(data: str) -> list[str]:
     if not ermhdr:
         raise ValueError("Invalid XER File")
     return ermhdr.group().split("\t")
-
-
-def _parse_table(table_data: str) -> tuple[str, XerTable]:
-    """Parse table name, columns, and rows"""
-
-    lines: list[str] = table_data.split("\n")
-    name = lines.pop(0).strip()  # First line is the table name
-    cols = lines.pop(0).strip().split("\t")[1:]  # Second line is the column labels
-    data = [dict(zip(cols, _split_row(row))) for row in lines if row.startswith("%R")]
-    return name, XerTable(name, cols, data)
 
 
 def _read_file(file: str | Path | BinaryIO) -> tuple[str, str]:
@@ -270,25 +255,10 @@ def _read_file(file: str | Path | BinaryIO) -> tuple[str, str]:
     return file_name, file_contents
 
 
-def _split_row(row: str) -> list[str]:
-    """Splits row into values."""
-    row_values = row.split("\t")[1:]
-    if row_values:
-        row_values[-1] = _strip_value(row_values[-1])
-    return row_values
-
-
-def _strip_value(val: str) -> str:
-    """Strips white space from a value"""
-    if val == "":
-        return ""
-    return val.strip()
-
-
 def _write_table_to_csv(name: str, table: XerTable, file_directory: Path) -> None:
     with file_directory.joinpath(f"{name}.csv").open("w") as f:
         writer = csv.DictWriter(f, fieldnames=table.labels, delimiter="\t")
         writer.writeheader()
-        for row in table.entries:
+        for row in table.entries():
             writer.writerow(row)
     f.close()

@@ -52,7 +52,7 @@ class TestReader(unittest.TestCase):
         print(f"Running XER Reader tests on {len(self.files)} .xer files.")
         for file in tqdm(self.files):
             reader = XerReader(file)
-            tables = reader.parse_tables()
+            tables = reader.to_dict()
             self.assertIsInstance(reader.export_date, datetime)
             self.assertRegex(reader.export_version, re.compile(r"\d+\.\d+"))
             for table in tables:
@@ -62,7 +62,7 @@ class TestReader(unittest.TestCase):
         print(f"Running delete_table tests on {len(self.files)} .xer files.")
         for file in tqdm(self.files):
             reader = XerReader(file)
-            tables = reader.parse_tables()
+            tables = reader.to_dict()
             for table in tables.keys():
                 self.assertNotIn("%T\t{table}\n", reader.delete_tables(table))
 
@@ -79,7 +79,7 @@ class TestReader(unittest.TestCase):
         print(f"Running to_csv tests on {len(self.files)} .xer files.")
         for file in tqdm(self.files):
             reader = XerReader(file)
-            tables = reader.parse_tables()
+            tables = reader.to_dict()
             temp_folder = Path.cwd().joinpath("temp")
             if not temp_folder.is_dir():
                 Path.mkdir(temp_folder)
