@@ -45,6 +45,7 @@ class XerTable:
         """Nested Array containing Rows of Data"""
 
         self._entries: list = []
+        self._serialized: bool = False
 
     def __bool___(self) -> bool:
         return len(self.rows) > 0
@@ -81,10 +82,22 @@ class XerTable:
             for label, value in entry
         ]
 
-    def entries(self) -> list[dict[str, str]]:
-        if not self._entries:
-            self._entries = [dict(zip(self.labels, row)) for row in self.rows]
+    def entries(self, serialize: bool = False) -> list[dict[str, str]]:
+        if not self._entries or serialize != self._serialized:
+            self._entries = [
+                converter(serialize, **dict(zip(self.labels, row))) for row in self.rows
+            ]
+        self._serialized = serialize
         return self._entries
+
+
+def converter(
+    serialize: bool, **kwargs: str
+) -> dict[str, None | int | float | datetime | bool]:
+    return {
+        label: _convert_entry_data_type(label, value, serialize)
+        for label, value in kwargs.items()
+    }
 
 
 def _is_date_label(label: str) -> bool:
@@ -99,12 +112,12 @@ def _is_float_label(label: str) -> bool:
 
 def _is_int_label(label: str) -> bool:
     return label.endswith(
-        ("_id", "_base", "_cnt", "_len", "_level", "_num", "_order", "_path", "_step")
+        ("_id", "_base", "_cnt", "_len", "_num", "_order", "_path", "_step")
     )
 
 
 def _convert_entry_data_type(
-    label: str, value: str
+    label: str, value: str, serialize: bool
 ) -> None | int | float | datetime | bool:
     if value == "":
         return None
@@ -113,7 +126,7 @@ def _convert_entry_data_type(
         return int(value)
     if _is_float_label(label):
         return float(value)
-    if _is_date_label(label):
+    if not serialize and _is_date_label(label):
         return datetime.strptime(value, DATE_HR_FORMAT)
     if label.endswith("_flag"):
         return value == "Y"

@@ -224,8 +224,8 @@ def _clean_foreign_key_label(label: str) -> str | None:
 
 def _entry_by_key(table: XerTable) -> dict | list:
     if not table.key:
-        return table.entries()
-    return {entry[table.key]: entry for entry in table.entries()}
+        return table.entries(serialize=True)
+    return {entry[table.key]: entry for entry in table.entries(serialize=True)}
 
 
 def _parse_file_info(data: str) -> list[str]:
@@ -257,8 +257,8 @@ def _read_file(file: str | Path | BinaryIO) -> tuple[str, str]:
 
 def _write_table_to_csv(name: str, table: XerTable, file_directory: Path) -> None:
     with file_directory.joinpath(f"{name}.csv").open("w") as f:
-        writer = csv.DictWriter(f, fieldnames=table.labels, delimiter="\t")
-        writer.writeheader()
-        for row in table.entries():
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(table.labels)
+        for row in table.rows:
             writer.writerow(row)
     f.close()
