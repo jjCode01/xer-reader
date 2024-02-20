@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from xer_reader.src.table_data import table_data
 
@@ -31,7 +32,7 @@ class XerTable:
         """List of Required Foreign Tables"""
         self.description: str = table_data[self.name]["description"]
         """Discription of Data Contained in Table"""
-        self.key: str = table_data[self.name]["key"]
+        self.key: str | None = table_data[self.name]["key"]
         """Label Name for Unique ID of Table Entries"""
 
         # Second line is the column labels
@@ -44,7 +45,7 @@ class XerTable:
         ]
         """Nested Array containing Rows of Data"""
 
-        self._entries: list = []
+        self._entries: list[dict[str, Any]] = []
         self._serialized: bool = False
 
     def __bool___(self) -> bool:
@@ -73,25 +74,17 @@ class XerTable:
     def __str__(self) -> str:
         return self.name
 
-    def convert_data_types(
-        self,
-    ) -> list[dict[str, None | int | float | datetime | bool]]:
-        return [
-            {label: _convert_entry_data_type(label, value)}
-            for entry in self.entries()
-            for label, value in entry
-        ]
-
     def entries(self, serialize: bool = False) -> list[dict[str, str]]:
         if not self._entries or serialize != self._serialized:
             self._entries = [
-                converter(serialize, **dict(zip(self.labels, row))) for row in self.rows
+                _converter(serialize, **dict(zip(self.labels, row)))
+                for row in self.rows
             ]
         self._serialized = serialize
         return self._entries
 
 
-def converter(
+def _converter(
     serialize: bool, **kwargs: str
 ) -> dict[str, None | int | float | datetime | bool]:
     return {
