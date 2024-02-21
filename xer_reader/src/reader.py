@@ -171,7 +171,7 @@ class XerReader:
                 f"{self.file_name}_{table.name}", table, Path(file_directory)
             )
 
-    def to_excel(self) -> None:
+    def to_excel(self, file_directory: str | Path = Path.cwd()) -> None:
         """
         Generate an Excel file with each table in the XER file on a seperate worksheet.
 
@@ -191,7 +191,7 @@ class XerReader:
 
             new_ws.add_table(tab)
 
-        wb.save(f"{self.file_name}.xlsx")
+        wb.save(Path(file_directory, f"{self.file_name}.xlsx"))
 
     def to_json(self, *tables: str) -> str:
         """Generate a json compliant string representation of tables in the XER file

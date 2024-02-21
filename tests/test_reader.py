@@ -46,7 +46,7 @@ class TestReader(unittest.TestCase):
         if self.temp_folder.is_dir():
             for file in self.temp_folder.glob("*.*"):
                 Path.unlink(file)
-            self.temp_folder.rmdir()
+            # self.temp_folder.rmdir()
 
     def test_reader(self):
         print(f"Running XER Reader tests on {len(self.files)} .xer files.")
@@ -94,3 +94,21 @@ class TestReader(unittest.TestCase):
                 )
                 if csv_file.is_file():
                     Path.unlink(csv_file)
+
+    def test_to_excel(self):
+        print(f"Running to_excel tests on {len(self.files)} .xer files.")
+        for file in tqdm(self.files):
+            reader = XerReader(file)
+            temp_folder = Path.cwd().joinpath("temp")
+            if not temp_folder.is_dir():
+                Path.mkdir(temp_folder)
+
+            reader.to_excel(temp_folder)
+
+            excel_file = temp_folder.joinpath(f"{reader.file_name}.xlsx")
+            self.assertTrue(
+                excel_file.is_file(),
+                f"{reader.file_name}.xlsx",
+            )
+            if excel_file.is_file():
+                Path.unlink(excel_file)
