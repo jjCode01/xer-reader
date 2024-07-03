@@ -118,7 +118,7 @@ def _convert_entry_data_type(
     if _is_int_label(label):
         return int(value)
     if _is_float_label(label):
-        return float(value)
+        return float(value.replace(",", "."))
     if not serialize and _is_date_label(label):
         return datetime.strptime(value, DATE_HR_FORMAT)
     if label.endswith("_flag"):
