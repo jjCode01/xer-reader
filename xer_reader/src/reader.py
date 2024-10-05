@@ -250,7 +250,7 @@ def _read_file(file: str | Path | BinaryIO) -> tuple[str, str]:
         file_name = file.name
 
     if not file_contents.startswith("ERMHDR"):
-        raise ValueError("ValueError: invalid XER file")
+        raise ValueError(f"ValueError: {file_name} is invalid XER file")
 
     return file_name, file_contents
 

@@ -1,8 +1,16 @@
 # Changelog - xer-reader
 
+## 0.3.2 - 2024-10-05  
+
+Clean up code.
+
+---  
+
 ## 0.3.1 - 2024-07-02
 
-Patched potential errors when transformming from a string to a float. Some languages use a comma rather than a period in floating point numbers. [Issue #1](https://github.com/jjCode01/xer-reader/issues/1)
+Patched potential errors when transformming from a string to a float. Some languages use a comma rather than a period in floating point numbers. [Issue #1](https://github.com/jjCode01/xer-reader/issues/1)  
+
+---
 
 ## 0.2.0 - 2024-02-02
 

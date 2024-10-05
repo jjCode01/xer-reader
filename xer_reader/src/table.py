@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import Any
 
@@ -19,10 +20,10 @@ class XerTable:
     """A class representing a P6 table"""
 
     def __init__(self, data: str) -> None:
-        _lines: list[str] = data.split("\n")
+        _lines: list[str] = re.split(r"\r?\n", data)
 
         # First line is the table name
-        self.name: str = _lines.pop(0).strip()
+        self.name: str = _lines.pop(0)
         """Table Name"""
 
         if self.name not in table_data:
@@ -41,7 +42,7 @@ class XerTable:
 
         # Remaining lines are the data rows
         self.rows: list[list[str]] = [
-            _split_row(row) for row in _lines if row.startswith("%R")
+            row.split("\t")[1:] for row in _lines if row.startswith("%R")
         ]
         """Nested Array containing Rows of Data"""
 
@@ -114,33 +115,19 @@ def _convert_entry_data_type(
 ) -> None | int | float | datetime | bool:
     if value == "":
         return None
-
     if _is_int_label(label):
-        return int(value)
+        try:
+            return int(value)
+        except ValueError:
+            return value
     if _is_float_label(label):
-        return float(value.replace(",", "."))
+        try:
+            return float(value.replace(",", "."))
+        except ValueError:
+            return value
     if not serialize and _is_date_label(label):
         return datetime.strptime(value, DATE_HR_FORMAT)
     if label.endswith("_flag"):
         return value == "Y"
 
     return value
-
-
-def _split_row(row: str) -> list[str]:
-    """Splits row into values."""
-    if not row.startswith("%R"):
-        raise ValueError("Invalid Row Data")
-
-    row_values = row.split("\t")[1:]
-    if row_values:
-        row_values[-1] = _strip_value(row_values[-1])
-
-    return row_values
-
-
-def _strip_value(val: str) -> str:
-    """Strips white space from a value"""
-    if val == "":
-        return ""
-    return val.strip()
