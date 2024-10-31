@@ -105,7 +105,7 @@ class XerReader:
 
         rev_data = self.data
         for name in table_names:
-            table_search = re.compile(rf"%T\t{name.upper()}\n(.|\s)*?(?=%T|%E)")
+            table_search = re.compile(rf"%T\t{name.upper()}\r?\n(.|\s)*?(?=%T|%E)")
             rev_data = table_search.sub("", rev_data)
         return rev_data
 
