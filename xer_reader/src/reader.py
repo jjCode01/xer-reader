@@ -157,7 +157,7 @@ class XerReader:
             tables[table.name] = table
         return tables
 
-    def to_csv(self, file_directory: str | Path = Path.cwd()) -> None:
+    def to_csv(self, file_directory: str | Path = Path.cwd(), tables: list[str] = []) -> None:
         """
         Generate a CSV file for each table in the XER file.
         Uses `tab` as the delimiter.
@@ -166,10 +166,11 @@ class XerReader:
             file_directory (str | Path, optional): Directory to save CSV files.
             Defaults to current working directory.
         """
-        for table in self.to_dict().values():
-            _write_table_to_csv(
-                f"{self.file_name}_{table.name}", table, Path(file_directory)
-            )
+        for name, table in self.to_dict().entries():
+            if not tables or name in tables:
+                _write_table_to_csv(
+                    f"{self.file_name}_{table.name}", table, Path(file_directory)
+                )
 
     def to_excel(self, file_directory: str | Path = Path.cwd()) -> None:
         """
