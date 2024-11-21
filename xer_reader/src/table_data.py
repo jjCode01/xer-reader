@@ -74,6 +74,11 @@ table_data = {
         "description": "Financial Periods",
         "depends": [],
     },
+    "FINTMPL": {
+        "key": "fintmpl_id",
+        "description": "Uknown",
+        "depends": [],
+    },
     "FUNDSRC": {
         "key": "fund_id",
         "description": "Funding Sources",
