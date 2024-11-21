@@ -153,8 +153,11 @@ class XerReader:
         """
         tables = {}
         for table_str in self.data.split("%T\t")[1:]:
-            table = XerTable(table_str)
-            tables[table.name] = table
+            try:
+                table = XerTable(table_str)
+                tables[table.name] = table
+            except UnrecognizedTable:
+                continue 
         return tables
 
     def to_csv(self, file_directory: str | Path = Path.cwd(), tables: list[str] = []) -> None:
