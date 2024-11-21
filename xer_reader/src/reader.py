@@ -14,7 +14,7 @@ from typing import BinaryIO
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table
 
-from xer_reader.src.table import XerTable
+from xer_reader.src.table import XerTable, UnrecognizedTable 
 from xer_reader.src.table_data import table_data
 
 DATE_FORMAT = "%Y-%m-%d"
