@@ -10,7 +10,7 @@ DATE_HR_FORMAT = "%Y-%m-%d %H:%M"
 class UnrecognizedTable(Exception):
     def __init__(self, table: str) -> None:
         self.table = table
-        self.message = f"Unregognized Table: {self.table}"
+        self.message = f"Unrecognized Table: {self.table}"
 
     def __str__(self) -> str:
         return self.message
