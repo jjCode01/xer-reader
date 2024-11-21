@@ -76,7 +76,7 @@ table_data = {
     },
     "FINTMPL": {
         "key": "fintmpl_id",
-        "description": "Uknown",
+        "description": "Unknown",
         "depends": [],
     },
     "FUNDSRC": {
