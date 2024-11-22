@@ -74,9 +74,15 @@ Return True if table (`table_name`) if found in the XER file.
 **`parse_tables()`** -> *dict[str, Table]*  
 Returns a dictionary with the table name as the key and a `Table` object as the value.  
 
-**`to_csv(file_directory: str | Path)`** -> *None*  
-Generate a CSV file for each table in the XER file using 'tab' as the delimiter. CSV files will be created in the current working directory.   
-Optional: Pass a string or Path object (`file_directory`) to speficy a folder to store the CSV files in.  
+**`to_csv(file_directory: str | Path, table_names: list[str], delimeter: str)`** -> *None*  
+Generate a CSV file for each table in the XER file. CSV files will be created in the current working directory.   
+Optional `file_directory`: Pass a string or Path object to speficy a folder to store the CSV files in.  
+Optional `table_names`: List of tables names to save to CSV files.  
+Optional `delimeter`: Change the default delimeter from a `tab` to another string (e.g. a coma ",").  
+
+```python
+reader.to_csv(table_names=["TASK", "PROJWBS"], delimeter=",")
+```
 
 **`to_excel()`** -> *None*  
 Generate an Excel (.xlsx) file with each table in the XER file on its own spreadsheet. The Excel file will be create in the 

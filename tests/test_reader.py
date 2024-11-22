@@ -75,25 +75,25 @@ class TestReader(unittest.TestCase):
             self.assertEqual(reader.get_table_str("PROJECT")[:7], "proj_id")
             self.assertEqual(reader.get_table_str("PROJWBS")[:6], "wbs_id")
 
-    # def test_to_csv(self):
-    #     print(f"Running to_csv tests on {len(self.files)} .xer files.")
-    #     for file in tqdm(self.files):
-    #         reader = XerReader(file)
-    #         tables = reader.to_dict()
-    #         temp_folder = Path.cwd().joinpath("temp")
-    #         if not temp_folder.is_dir():
-    #             Path.mkdir(temp_folder)
+    def test_to_csv(self):
+        print(f"Running to_csv tests on {len(self.files)} .xer files.")
+        for file in tqdm(self.files):
+            reader = XerReader(file)
+            tables = reader.to_dict()
+            temp_folder = Path.cwd().joinpath("temp")
+            if not temp_folder.is_dir():
+                Path.mkdir(temp_folder)
 
-    #         reader.to_csv(temp_folder)
+            reader.to_csv(temp_folder)
 
-    #         for table_name in tables.keys():
-    #             csv_file = temp_folder.joinpath(f"{reader.file_name}_{table_name}.csv")
-    #             self.assertTrue(
-    #                 csv_file.is_file(),
-    #                 f"{table_name}.csv",
-    #             )
-    #             if csv_file.is_file():
-    #                 Path.unlink(csv_file)
+            for table_name in tables.keys():
+                csv_file = temp_folder.joinpath(f"{reader.file_name}_{table_name}.csv")
+                self.assertTrue(
+                    csv_file.is_file(),
+                    f"{table_name}.csv",
+                )
+                if csv_file.is_file():
+                    Path.unlink(csv_file)
 
     # def test_to_excel(self):
     #     print(f"Running to_excel tests on {len(self.files)} .xer files.")

@@ -14,7 +14,7 @@ from typing import BinaryIO
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table
 
-from xer_reader.src.table import XerTable, UnrecognizedTable 
+from xer_reader.src.table import XerTable, UnrecognizedTable
 from xer_reader.src.table_data import table_data
 
 DATE_FORMAT = "%Y-%m-%d"
@@ -157,22 +157,32 @@ class XerReader:
                 table = XerTable(table_str)
                 tables[table.name] = table
             except UnrecognizedTable:
-                continue 
+                continue
         return tables
 
-    def to_csv(self, file_directory: str | Path = Path.cwd(), tables: list[str] = []) -> None:
+    def to_csv(
+        self,
+        file_directory: str | Path = Path.cwd(),
+        table_names: list[str] = [],
+        delimeter: str = "\t",
+    ) -> None:
         """
         Generate a CSV file for each table in the XER file.
-        Uses `tab` as the delimiter.
+        Uses `tab` as the delimiter by default.
 
         Args:
-            file_directory (str | Path, optional): Directory to save CSV files.
-            Defaults to current working directory.
+            file_directory (str | Path, optional): Directory to save CSV files. [Defaults to current working directory]
+            table_names (list, optional): List of table names to save to CSV files. If empty, all tables will be saved.
+            delimeter (str, optional): CSV delimeter. [Default is a `tab`]
         """
-        for name, table in self.to_dict().entries():
-            if not tables or name in tables:
+        names = [name.upper() for name in table_names]
+        for table in self.to_dict().values():
+            if not table_names or table.name in names:
                 _write_table_to_csv(
-                    f"{self.file_name}_{table.name}", table, Path(file_directory)
+                    f"{self.file_name}_{table.name}",
+                    table,
+                    Path(file_directory),
+                    delimeter,
                 )
 
     def to_excel(self, file_directory: str | Path = Path.cwd()) -> None:
@@ -259,9 +269,11 @@ def _read_file(file: str | Path | BinaryIO) -> tuple[str, str]:
     return file_name, file_contents
 
 
-def _write_table_to_csv(name: str, table: XerTable, file_directory: Path) -> None:
+def _write_table_to_csv(
+    name: str, table: XerTable, file_directory: Path, delimeter
+) -> None:
     with file_directory.joinpath(f"{name}.csv").open("w") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter=delimeter)
         writer.writerow(table.labels)
         for row in table.rows:
             writer.writerow(row)

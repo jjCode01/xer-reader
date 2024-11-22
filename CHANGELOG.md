@@ -1,5 +1,16 @@
 # Changelog - xer-reader
 
+## 0.4.0 - 2024-11-21
+
+* Reference [Issue #2](https://github.com/jjCode01/xer-reader/issues/2)
+    * The `to_dict` method no longer throws an error if an unreckognized table is found; it now just ignores the table.
+    * Added `FINTMPL` to table_data.
+    * Updated `to_csv` method:
+        * Can now pass a list of table names to export to CSV. For example pass in agrument `table_names=["TASK", "PROJWBS"]` to only export the task and wbs tables to CSV.  
+        * Can now change the delimeter. For example, pass in argument `delimeter=","` to use a coma rather than the default tab.
+
+---  
+
 ## 0.3.2 - 2024-10-05  
 
 Clean up code.
