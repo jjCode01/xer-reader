@@ -76,7 +76,7 @@ Returns a dictionary with the table name as the key and a `Table` object as the 
 
 **`to_csv(file_directory: str | Path, table_names: list[str], delimeter: str)`** -> *None*  
 Generate a CSV file for each table in the XER file. CSV files will be created in the current working directory.   
-Optional `file_directory`: Pass a string or Path object to speficy a folder to store the CSV files in.  
+Optional `file_directory`: Pass a string or Path object to specify a folder to store the CSV files in.  
 Optional `table_names`: List of tables names to save to CSV files.  
 Optional `delimeter`: Change the default delimeter from a `tab` to another string (e.g. a coma ",").  
 
