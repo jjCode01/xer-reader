@@ -1,5 +1,11 @@
 # Changelog - xer-reader
 
+## 0.4.1 - 2024-12-20
+
+Corrections to README.
+
+---
+
 ## 0.4.0 - 2024-11-21
 
 * Reference [Issue #2](https://github.com/jjCode01/xer-reader/issues/2)

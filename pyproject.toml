@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "xer-reader"
-version = "0.4.0"
+version = "0.4.1"
 description = "Read and parse a Primavera P6 xer file."
 authors = ["Jesse Jones <code@seqmanagement.com>"]
 license = "GPL-3.0-only"
